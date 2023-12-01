@@ -103,23 +103,6 @@ export default function CarContent() {
                         <Button type="submit" variant="contained">
                             Check
                         </Button>
-                        {/* <input
-                            type="file"
-                            name="image"
-                            onChange={(e) => {
-                                if (e.target.files) {
-                                    setFiles(e.target.files);
-                                }
-                            }}
-                        ></input> */}
-
-                        {/* {files && (
-                            <>
-                                <Button type="submit" variant="contained">
-                                    Check
-                                </Button>
-                            </>
-                        )} */}
                     </div>
                 )}
 

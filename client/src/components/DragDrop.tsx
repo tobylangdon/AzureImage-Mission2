@@ -28,15 +28,9 @@ export default function DragDrop(props: Props) {
         // Fetch the files
         const droppedFiles = Array.from(event.dataTransfer.files);
         props.setFile(droppedFiles);
-        // setFiles(droppedFiles);
-
-        // Use FileReader to read file content
     };
 
     return (
-        // <div>
-        //     <input type="file" name="image" onChange={(e) => props.setFile(e.target.files)}></input>
-        // </div>
         <div
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
