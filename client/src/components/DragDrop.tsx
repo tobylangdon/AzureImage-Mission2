@@ -2,51 +2,53 @@ import { DragEvent } from "react";
 import { useState } from "react";
 
 type Props = {
-    file: File[] | undefined;
-    setFile: React.Dispatch<React.SetStateAction<any>>;
+  file: File[] | undefined;
+  setFile: React.Dispatch<React.SetStateAction<any>>;
 };
 
 export default function DragDrop(props: Props) {
-    const [dragIsOver, setDragIsOver] = useState<boolean>(false);
-    // const [files, setFiles] = useState<File[]>([]);
+  const [dragIsOver, setDragIsOver] = useState<boolean>(false);
+  // remove this line/comment if not used anywhere
+  // const [files, setFiles] = useState<File[]>([]);
 
-    // Define the event handlers
-    const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
-        event.preventDefault();
-        setDragIsOver(true);
-    };
+  // Define the event handlers
+  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setDragIsOver(true);
+  };
 
-    const handleDragLeave = (event: DragEvent<HTMLDivElement>) => {
-        event.preventDefault();
-        setDragIsOver(false);
-    };
+  const handleDragLeave = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setDragIsOver(false);
+  };
 
-    const handleDrop = (event: DragEvent<HTMLDivElement>) => {
-        event.preventDefault();
-        setDragIsOver(false);
+  const handleDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setDragIsOver(false);
 
-        // Fetch the files
-        const droppedFiles = Array.from(event.dataTransfer.files);
-        props.setFile(droppedFiles);
-    };
+    // Fetch the files
+    const droppedFiles = Array.from(event.dataTransfer.files);
+    props.setFile(droppedFiles);
+  };
 
-    return (
-        <div
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
-            style={{
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                height: "100%",
-                width: "100%",
-                color: "black",
-                border: "1px dotted",
-                backgroundColor: dragIsOver ? "lightgray" : "white",
-            }}
-        >
-            Drag and drop some files here
-        </div>
-    );
+  return (
+    <div
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      //   Avoid using inline styles, use a css file instead
+      style={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        height: "100%",
+        width: "100%",
+        color: "black",
+        border: "1px dotted",
+        backgroundColor: dragIsOver ? "lightgray" : "white",
+      }}
+    >
+      Drag and drop some files here
+    </div>
+  );
 }
