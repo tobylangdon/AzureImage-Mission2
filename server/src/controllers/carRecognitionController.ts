@@ -1,18 +1,25 @@
 import { Response, Request } from "express";
-import axios from "axios";
-import sharp from "sharp";
-import fs from "fs";
-import { spawn } from "child_process";
+import cars from "../db/cars";
 
 interface CheckImageResponse {
     type: string | undefined;
     brand: string | undefined;
     colours: string[];
     message: string;
+    relevantTags: AzureTag[];
+    urls: string[];
 }
 interface ErrorImageResponse {
     message: string;
 }
+type Cars = {
+    _id: any;
+    url: string;
+    type: string;
+    brand: string;
+    color: string;
+    relevantTags: string[];
+};
 
 type Brands = {
     name: string;
@@ -43,88 +50,14 @@ const typicalCarColors: string[] = ["black", "white", "silver", "gray", "red", "
 
 //Matches different relevant tags to certain types of cars
 const carTypesToTags: CarTypes[] = [
-    { type: "sedan", alternatives: ["sedan", "city car"] },
+    { type: "sedan", alternatives: ["sedan", "city car", "lexus"] },
     { type: "SUV", alternatives: ["compact sport utility vehicle", "sport utility vehicle"] },
     { type: "Hatchback", alternatives: ["hatchback", "subcompact car"] },
     { type: "Coupe", alternatives: ["supercar", "sports car", "convertible"] },
-    { type: "Ute/Pick Up", alternatives: ["off-road vehicle", "pickup truck"] },
-    { type: "Minivan", alternatives: ["minivan", "family car", "mini mpv"] },
+    { type: "Ute/Pick Up", alternatives: ["off-road vehicle", "pickup truck", "land rover"] },
+    { type: "Minivan", alternatives: ["minivan", "executive car", "mini mpv"] },
     { type: "Super Car", alternatives: ["lamborghini", "maserati", "bugatti", "ferrari", "supercar"] },
 ];
-
-const callAzureApiWithImageData = async (base64Image: string): Promise<AzureResponse | any> => {
-    // Remove the data URL prefix and create a Buffer from base64 data
-
-    // Use sharp to convert to JPEG
-    const randNum: number = Math.random() * 1000;
-    const imageSrc: string = `./TEMP_IMAGES/image${randNum.toString()}.jpg`;
-
-    try {
-        base64Image = base64Image.replace(/^data:image\/\w+;base64,/, "");
-        const bufferData = Buffer.from(base64Image, "base64");
-        // Convert to JPEG and save the image
-        const outputBuffer = await sharp(bufferData).toFormat("jpeg").toBuffer();
-        await fs.promises.writeFile(imageSrc, outputBuffer);
-
-        console.log("Image saved as ", imageSrc);
-
-        // Run Python script in order to send through bytes of image data to azure API
-        const python = spawn("python", [`./getAzureImage.py`, imageSrc]);
-
-        // Collect data from script
-        let buf = "";
-        for await (const data of python.stdout) {
-            console.log("Pipe data from python script ...");
-            buf += data;
-        }
-
-        //Turn the collected data into javascript json file
-        var responseData = buf.toString().replace(/\'/g, '"');
-        function replaceAll(string: string, search: string, replace: string) {
-            return string.split(search).join(replace);
-        }
-
-        //Replace T with t and F with f as python booleans are capitalised
-        responseData = replaceAll(responseData, "T", "t");
-        responseData = replaceAll(responseData, "F", "f");
-        const response: AzureResponse | any = JSON.parse(responseData);
-
-        // Clean up: Remove the temporary image file
-        await fs.promises.rm(imageSrc, { force: true });
-
-        return response;
-    } catch (error) {
-        console.error(error);
-
-        // Clean up: Remove the temporary image file
-        await fs.promises.rm(imageSrc, { force: true });
-
-        return error;
-    }
-};
-
-const callAzureApiURL = async (url: string): Promise<AzureResponse | boolean> => {
-    const KEY: string = "d780a27e3b2b4441bc4c940ac82a6223";
-
-    return await axios
-        .post(
-            "https://car-recogniser.cognitiveservices.azure.com/vision/v3.2/analyze?visualFeatures=Tags,Brands,Color",
-            { url: url },
-            {
-                headers: {
-                    "Content-Type": "application/json",
-                    "Ocp-Apim-Subscription-Key": KEY,
-                },
-            }
-        )
-        .then((res) => {
-            return res.data;
-        })
-        .catch((error) => {
-            console.error("Error: ", error.response);
-            return false;
-        });
-};
 
 const validateCar = (tags: AzureTag[]): boolean => {
     for (const tag of tags) {
@@ -135,12 +68,13 @@ const validateCar = (tags: AzureTag[]): boolean => {
     return false;
 };
 
-type TypeAndColour = {
+type ValidatedCarData = {
     type: string;
     colours: string[];
+    tags: AzureTag[];
 };
 
-const mostLikelyType = (tags: AzureTag[]): TypeAndColour => {
+const mostLikelyType = (tags: AzureTag[]): ValidatedCarData => {
     let carTypeName: string | undefined = undefined;
     let carTypeCOnfidence: number = 0;
 
@@ -158,7 +92,7 @@ const mostLikelyType = (tags: AzureTag[]): TypeAndColour => {
             }
 
             //stores all the relevant types in an object and relevant tags in an array
-            if (tag.confidence > 0.85 && type.alternatives.includes(tag.name)) {
+            if (tag.confidence > 0.84 && type.alternatives.includes(tag.name)) {
                 carTypes.push(tag);
                 !carProbability[type.type] ? (carProbability[type.type] = 1) : (carProbability[type.type] += 1);
             }
@@ -170,10 +104,11 @@ const mostLikelyType = (tags: AzureTag[]): TypeAndColour => {
     });
 
     //Function will check and validate types and return most likely result
-    console.log(carTypes);
+    console.log(carProbability);
     const confirmedType = (): string => {
         //Firstly checks for likely hood of car image being a minivan
-        if (carTypeName === "minivan" && carTypeCOnfidence > 0.9) {
+
+        if (carTypeName === "minivan" && carTypeCOnfidence > 0.95) {
             return "minivan";
         }
         //If not classified as minivan then perform other checks
@@ -194,50 +129,75 @@ const mostLikelyType = (tags: AzureTag[]): TypeAndColour => {
                     bufferType.push(key);
                 }
             }
-
+            console.log(bufferType);
             //If array contains more than one car type perform more checks
             if (bufferType.length > 1) {
                 let confirmedCar = carTypeName;
-                carTypes.forEach((t) => {
-                    if (t.name === "hatchback" || t.name === "subcompact car") {
-                        confirmedCar = "hatchback";
-                    }
-                });
+                if (bufferType.includes("Ute/Pick Up") && !bufferType.includes("hatchback")) {
+                    confirmedCar = "Ute/Pick Up";
+                } else {
+                    carTypes.forEach((t) => {
+                        if (t.name === "hatchback" || t.name === "subcompact car") {
+                            confirmedCar = "hatchback";
+                        }
+                    });
+                }
+
                 return confirmedCar!;
             }
             return bufferType[0];
         }
     };
 
-    return { type: confirmedType(), colours };
+    return { type: confirmedType(), colours, tags: carTypes };
+};
+
+const getSimilarCarsFromDatabase = async (carData: ValidatedCarData): Promise<string[]> => {
+    //destructure arg
+    const { type, colours, tags } = carData;
+    const tagsConfidenceRemoved: string[] = tags.map((tag) => tag.name);
+    console.log("testing now", type);
+    const carsWithType: Cars[] = await cars.find({ type: type.toLowerCase() });
+    const carsWithTags: Cars[] = await cars.find({ relevantTags: { $in: tagsConfidenceRemoved } });
+    console.log("TAGS: ", carsWithTags.length);
+
+    function compare(a: Cars): number {
+        console.log("comparing");
+        const sameTags = a.relevantTags.map((tag) => {
+            if (tagsConfidenceRemoved.includes(tag)) {
+                return tag;
+            }
+        });
+        if (a.color === colours[0]) {
+            console.log(a.brand, a.color);
+            return -1;
+        }
+
+        if (a.type === type) {
+            return -3;
+        }
+        return 1;
+    }
+    const test = carsWithTags.sort(compare);
+    const carsWithTypeUrl: string[] = test.map((car: Cars) => {
+        return car.url;
+    });
+    return carsWithTypeUrl;
 };
 
 export const checkImage = async (req: Request, res: Response<CheckImageResponse | ErrorImageResponse>): Promise<void> => {
     try {
-        var { url, isUrl } = req.body;
+        var { data: azureRes, dataType } = req.body;
 
-        //then calls the above functions which in turn calls the azure api endpoint checking the image
-        //will either return an AzureResponse or be equal to false
-        var azureRes: AzureResponse | any;
-        if (!isUrl || url.includes("base64,/")) {
-            azureRes = await callAzureApiWithImageData(url);
+        const { brands, tags }: AzureResponse = azureRes;
+        const isCar = validateCar(tags);
+        console.log(tags, brands);
+        if (!isCar) {
+            res.status(400).send({ message: "The image is not a car" });
         } else {
-            azureRes = await callAzureApiURL(url);
-        }
-
-        //if the api response works with no errors then validate data, otherwise send an error response back to client
-        if (azureRes) {
-            const { brands, tags }: AzureResponse = azureRes;
-            const isCar = validateCar(tags);
-            console.log(tags, brands);
-            if (!isCar) {
-                res.status(400).send({ message: "The image is not a car" });
-            } else {
-                const type = mostLikelyType(tags);
-                res.status(200).send({ type: type.type, colours: type.colours, brand: brands[0]?.name, message: "string" });
-            }
-        } else {
-            res.status(400).send({ message: "The image could not be used. Please try another image." });
+            const type = mostLikelyType(tags);
+            const urls = await getSimilarCarsFromDatabase(type);
+            res.status(200).send({ type: type.type, colours: type.colours, brand: brands[0]?.name, message: "string", relevantTags: type.tags, urls });
         }
     } catch {
         res.status(500).send({ message: "An internal server error occured. Please try a different image" });

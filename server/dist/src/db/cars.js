@@ -22,26 +22,13 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = __importDefault(require("express"));
-const cors_1 = __importDefault(require("cors"));
-const carRecognition_1 = __importDefault(require("./routes/carRecognition"));
-const dotenv = __importStar(require("dotenv"));
-dotenv.config({ path: __dirname + "../../.env" });
-const app = (0, express_1.default)();
-const port = process.env.PORT || 3000;
-app.use(express_1.default.json({ limit: "50mb" }));
-app.use((0, cors_1.default)({
-    origin: "*",
-    credentials: true,
-}));
-app.get("/", (req, res) => {
-    res.send("Hello world - the server is working!");
+const mongoose_1 = __importStar(require("mongoose"));
+const CarsSchema = new mongoose_1.Schema({
+    image: { type: Image, required: true },
+    brand: { type: String, required: true },
+    color: { type: String, required: true },
+    type: { type: String, required: true },
 });
-app.use(carRecognition_1.default);
-app.listen(port, () => {
-    console.log("Listening on port 5000");
-});
+const CarModel = mongoose_1.default.model("Car", CarsSchema);
+exports.default = CarModel;

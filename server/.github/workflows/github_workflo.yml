@@ -1,0 +1,43 @@
+name: My GitHub Action
+run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
+
+on:
+    push:
+        branches:
+            - main
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        strategy:
+            matrix:
+                node-version: [18.x]
+                # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
+        env:
+            AZURE_WEBAPP_NAME: mission2-server # set this to your application's name
+            AZURE_WEBAPP_PACKAGE_PATH: "." # set this to the path to your web app project, defaults to the repository root
+            PORT: 3000
+
+        steps:
+            - uses: actions/checkout@v3
+            - name: Use Node.js ${{ matrix.node-version }}
+              uses: actions/setup-node@v3
+              with:
+                  node-version: ${{ matrix.node-version }}
+                  cache: "npm"
+            - run: npm install
+            - run: npm run build --if-present
+            - run: npm test --if-present
+              working-directory: "./dist"
+            - name: Archive code coverage results
+              uses: actions/upload-artifact@v3
+              with:
+                  name: code-coverage-report
+                  path: coverage/lcov-report/*
+            - name: "Deploy to Azure WebApp"
+              uses: azure/webapps-deploy@v2
+              with:
+                  app-name: ${{ env.AZURE_WEBAPP_NAME }}
+                  publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE}}
+                  package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}

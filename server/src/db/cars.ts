@@ -1,19 +1,11 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, Document, connect } from "mongoose";
 
-interface Car extends Document {
-    image: String;
-    brand: String;
-    color: String;
-    type: String;
-}
-
-const CarsSchema: Schema<Car> = new Schema({
-    image: { type: Image, required: true },
-    brand: { type: String, required: true },
-    color: { type: String, required: true },
-    type: { type: String, required: true },
+const carSchema = new mongoose.Schema({
+    url: String,
+    type: String,
+    brand: String,
+    color: String,
+    relevantTags: Array,
 });
 
-const CarModel = mongoose.model<Car>("Car", CarsSchema);
-
-export default CarModel;
+export = mongoose.model("cars", carSchema);
