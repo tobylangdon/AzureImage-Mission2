@@ -2,6 +2,7 @@ import styles from "./CarContent.module.css";
 import { FormEvent, useState } from "react";
 import Button from "@mui/material/Button";
 import axios from "axios";
+import CarDisplay from "./CarDisplay";
 
 interface AzureResponse {
     brands: Brands[];
@@ -28,8 +29,16 @@ interface CheckImageResponse {
     colours: string[];
     message: string;
     relevantTags: AzureTag[];
-    urls: string[];
+    cars: Cars[];
 }
+type Cars = {
+    _id: any;
+    url: string;
+    type: string;
+    brand: string;
+    color: string;
+    relevantTags: string[];
+};
 interface ErrorImageResponse {
     message: string;
 }
@@ -49,7 +58,7 @@ export default function CarContent() {
     const [carImageData, setCarImageData] = useState<CheckImageResponse | undefined>();
     const [carImageError, setCarImageError] = useState<ErrorImageResponse | undefined>();
     const [isUrl, setIsUrl] = useState<boolean>(true);
-    const [similarCarUrls, setSimilarCarUrls] = useState<string[]>();
+    const [similarcars, setSimilarCars] = useState<Cars[]>();
 
     // useEffect(() => {
     //     if (azureResponse) {
@@ -111,7 +120,7 @@ export default function CarContent() {
                 setFetchingData(false);
                 console.log(response.data);
                 setCarImageData(response.data);
-                setSimilarCarUrls(response.data.urls);
+                setSimilarCars(response.data.cars);
             })
             .catch((error) => {
                 console.error("Error:", error.response.data.error);
@@ -208,31 +217,30 @@ export default function CarContent() {
                     <img src="images/loading.svg" width="70px" alt="loading" />
                 </>
             )}
+
             {carImageData && (
                 <>
-                    {carImageData.type && (
-                        <>
-                            <h2>Car Type: </h2>
-                            <p>{carImageData?.type}</p>
-                        </>
-                    )}
-
-                    {carImageData.brand && (
-                        <>
-                            <h2>Car brand: </h2>
-                            <p>{carImageData?.brand}</p>
-                        </>
-                    )}
-                    {carImageData.colours.length > 0 && (
-                        <>
-                            <h2>Car colour: </h2>
-                            <p>{carImageData.colours.map((colour) => colour)}</p>
-                        </>
-                    )}
+                    <div className={styles.carData}>
+                        <div>
+                            <p>
+                                Likely car type: <span className={styles.data}>{carImageData?.type || "NA"}</span>
+                            </p>
+                            <p>
+                                Likely car brand: <span className={styles.data}>{carImageData?.brand || "NA"}</span>
+                            </p>
+                            <p>
+                                Likely car colour: <span className={styles.data}>{carImageData?.colours[0] || "NA"}</span>
+                            </p>
+                        </div>
+                    </div>
                     <div className={styles.databaseImages}>
-                        {similarCarUrls &&
-                            similarCarUrls.map((image) => {
-                                return <img src={image} width="200px" />;
+                        {similarcars &&
+                            similarcars.map((car) => {
+                                return (
+                                    <div className={styles.carDisplayGridBox}>
+                                        <CarDisplay src={car.url} type={car.type} brand={car.brand} />
+                                    </div>
+                                );
                             })}
                     </div>
 

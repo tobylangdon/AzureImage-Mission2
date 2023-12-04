@@ -7,7 +7,7 @@ interface CheckImageResponse {
     colours: string[];
     message: string;
     relevantTags: AzureTag[];
-    urls: string[];
+    cars: Cars[];
 }
 interface ErrorImageResponse {
     message: string;
@@ -152,37 +152,35 @@ const mostLikelyType = (tags: AzureTag[]): ValidatedCarData => {
     return { type: confirmedType(), colours, tags: carTypes };
 };
 
-const getSimilarCarsFromDatabase = async (carData: ValidatedCarData): Promise<string[]> => {
+const getSimilarCarsFromDatabase = async (carData: ValidatedCarData): Promise<Cars[]> => {
     //destructure arg
     const { type, colours, tags } = carData;
     const tagsConfidenceRemoved: string[] = tags.map((tag) => tag.name);
-    console.log("testing now", type);
-    const carsWithType: Cars[] = await cars.find({ type: type.toLowerCase() });
-    const carsWithTags: Cars[] = await cars.find({ relevantTags: { $in: tagsConfidenceRemoved } });
-    console.log("TAGS: ", carsWithTags.length);
 
-    function compare(a: Cars): number {
-        console.log("comparing");
-        const sameTags = a.relevantTags.map((tag) => {
-            if (tagsConfidenceRemoved.includes(tag)) {
-                return tag;
-            }
-        });
-        if (a.color === colours[0]) {
-            console.log(a.brand, a.color);
-            return -1;
-        }
-
-        if (a.type === type) {
-            return -3;
-        }
-        return 1;
-    }
-    const test = carsWithTags.sort(compare);
-    const carsWithTypeUrl: string[] = test.map((car: Cars) => {
-        return car.url;
+    //gets all cars from database that either match the type or have relevant tags
+    const carsWithCriteria: Cars[] = await cars.find({
+        $or: [{ type: type.toLowerCase() }, { relevantTags: { $in: tags.map((tag) => tag.name) } }],
     });
-    return carsWithTypeUrl;
+
+    //compare function to sort the order of cars by type, colour and then relevant tags
+    function newCompare(a: Cars, b: Cars): number {
+        if (a.type === type.toLowerCase() && b.type !== type.toLowerCase()) return -1;
+        if (b.type === type.toLowerCase() && a.type !== type.toLowerCase()) return 1;
+
+        // Then, prioritize by color
+        if (a.color === colours[0] && b.color !== colours[0]) return -1;
+        if (b.color === colours[0] && a.color !== colours[0]) return 1;
+
+        // Finally, prioritize by the number of matching tags
+        const matchingTagsA = a.relevantTags.filter((tag) => tagsConfidenceRemoved.includes(tag)).length;
+        const matchingTagsB = b.relevantTags.filter((tag) => tagsConfidenceRemoved.includes(tag)).length;
+
+        return matchingTagsB - matchingTagsA;
+    }
+
+    const sorted = carsWithCriteria.sort(newCompare);
+
+    return sorted;
 };
 
 export const checkImage = async (req: Request, res: Response<CheckImageResponse | ErrorImageResponse>): Promise<void> => {
@@ -196,8 +194,8 @@ export const checkImage = async (req: Request, res: Response<CheckImageResponse 
             res.status(400).send({ message: "The image is not a car" });
         } else {
             const type = mostLikelyType(tags);
-            const urls = await getSimilarCarsFromDatabase(type);
-            res.status(200).send({ type: type.type, colours: type.colours, brand: brands[0]?.name, message: "string", relevantTags: type.tags, urls });
+            const cars = await getSimilarCarsFromDatabase(type);
+            res.status(200).send({ type: type.type, colours: type.colours, brand: brands[0]?.name, message: "string", relevantTags: type.tags, cars });
         }
     } catch {
         res.status(500).send({ message: "An internal server error occured. Please try a different image" });
