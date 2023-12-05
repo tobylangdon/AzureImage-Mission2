@@ -6,11 +6,16 @@
     justify-content: space-between;
     padding: 0 10vh;
 }
+.header a {
+    text-decoration: none;
+    color: white;
+}
 .links a {
     margin: 0 50px;
-    transition-duration: 0.3s;
+    transition-duration: 0.1s;
 }
 .links a:hover {
     color: #ffdddd;
+    text-decoration: underline;
     cursor: pointer;
 }

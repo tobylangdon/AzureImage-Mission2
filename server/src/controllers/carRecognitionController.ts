@@ -161,6 +161,16 @@ const getSimilarCarsFromDatabase = async (carData: ValidatedCarData): Promise<Ca
     const carsWithCriteria: Cars[] = await cars.find({
         $or: [{ type: type.toLowerCase() }, { relevantTags: { $in: tags.map((tag) => tag.name) } }],
     });
+    const typeCars = carsWithCriteria.filter((car) => car.type === type && car);
+    const otherCars = carsWithCriteria.filter((car) => car.type !== type && car);
+    console.log(typeCars, otherCars);
+
+    function compareTypes(a: Cars): number {
+        if (a.color === colours[0]) {
+            return -1;
+        }
+        return 1;
+    }
 
     //compare function to sort the order of cars by type, colour and then relevant tags
     function newCompare(a: Cars, b: Cars): number {
@@ -174,12 +184,14 @@ const getSimilarCarsFromDatabase = async (carData: ValidatedCarData): Promise<Ca
         // Finally, prioritize by the number of matching tags
         const matchingTagsA = a.relevantTags.filter((tag) => tagsConfidenceRemoved.includes(tag)).length;
         const matchingTagsB = b.relevantTags.filter((tag) => tagsConfidenceRemoved.includes(tag)).length;
-
+        if (matchingTagsA > matchingTagsB) return -1;
+        if (matchingTagsA > matchingTagsB) return 1;
         return matchingTagsB - matchingTagsA;
     }
 
-    const sorted = carsWithCriteria.sort(newCompare);
-
+    var sorted = typeCars.sort(compareTypes);
+    const sortedOther = otherCars.sort(newCompare);
+    sorted = [...sorted, ...sortedOther];
     return sorted;
 };
 

@@ -4,6 +4,7 @@ import car from "./routes/carRecognition";
 import * as dotenv from "dotenv";
 dotenv.config({ path: __dirname + "../../.env" });
 import cars from "./db/cars";
+import uploadCar from "./routes/uploadcar";
 import mongoose, { Schema, Document, connect } from "mongoose";
 import { MongoClient } from "mongodb";
 
@@ -23,6 +24,7 @@ app.get("/", (req: Request, res: Response) => {
     res.send("Hello world - the server is working!");
 });
 app.use(car);
+app.use(uploadCar);
 
 //sets up database connection
 main().catch((err) => console.log(err));
